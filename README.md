@@ -1,4 +1,5 @@
-# 🚗 AI-Based Vehicle Speed & Plate Detection System
+# AI-Based Vehicle Speed & Plate Detection System
+<img width="1268" height="676" alt="image" src="https://github.com/user-attachments/assets/283666f2-0ca0-4549-96fe-67019984c2ec" />
 
 Bu proje, tek bir sabit güvenlik kamerası açısından geçen araçların anlık hızlarını ve plakalarını yüksek doğrulukla tespit etmeyi amaçlayan, görüntü işleme ve derin öğrenme tabanlı bir sistemdir. Klasik donanımsal radar cihazlarına ihtiyaç duymadan, video analitiği ve "Sanal Radar (Virtual Loop)" mantığı kullanarak çalışır.
 
