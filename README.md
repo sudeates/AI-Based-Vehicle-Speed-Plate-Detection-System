@@ -1,4 +1,4 @@
-#  AI-Based Vehicle Speed & Plate Detection System
+# AI-Based Vehicle Speed & Plate Detection System
 
 Bu proje, tek bir sabit güvenlik kamerası açısından geçen araçların anlık hızlarını ve plakalarını yüksek doğrulukla tespit etmeyi amaçlayan, yapay zeka ve görüntü işleme tabanlı bir sistemdir. Klasik radar cihazlarına ihtiyaç duymadan, video analitiği ve **"Sanal Radar (Virtual Loop)"** mantığıyla çalışır.
 
@@ -21,6 +21,35 @@ Bu proje, tek bir sabit güvenlik kamerası açısından geçen araçların anl�
 
 ---
 
+## ⚙️ Sistem Mimarisi ve İş Akışı
+
+Sistemin modüler yapısı üç temel aşamadan oluşmaktadır: Tespit/Takip, Hız Ölçümü ve OCR.
+
+```mermaid
+graph TD
+    A[Video Akışı / Kamera] --> B(1. YOLOv8n & ByteTrack)
+    B -->|Araç Tespit Edildi & ID Atandı| C{Alt Kenar Y2 Koordinatı}
+
+    C --> D[2. Sanal Radar Modülü]
+    D -->|Kare Sayacı Başlar| E(Giriş Çizgisini Kesti)
+    E -->|Kare Sayacı Durur| F(Çıkış Çizgisini Kesti)
+    F --> G(Hız = Mesafe / Zaman)
+
+    C --> H[3. Plaka Tespit Modülü]
+    H --> I(Araçtan Plaka Kırpımı - YOLO)
+    I --> J{Bulanıklık Kontrolü}
+    J -->|Çok Bulanık| K[Pas Geç / Kaynak Koru]
+    J -->|Net Görüntü| L(fast-plate-ocr)
+    L --> M(Çoğunluk Oylaması - Majority Voting)
+
+    G --> N{NİHAİ EKRAN VE LOG}
+    M --> N
+    N --> O[ID + Hız + Plaka + İhlal Durumu]
+
+```
+
+---
+
 ## 📁 Proje Yapısı
 
 GitHub deposunun modüler ve sade yapısı şu şekildedir:
@@ -40,11 +69,12 @@ GitHub deposunun modüler ve sade yapısı şu şekildedir:
 
 ---
 
-## ⚙️ Sistem İş Akışı
+## 📂 Veri Seti (Dataset)
 
-1. **Tespit ve Takip:** YOLOv8 ile araç tespit edilir, ByteTrack ile araca eşsiz bir kimlik (ID) atanır.
-2. **Hız Ölçümü:** Aracın alt kenarı (Y2 koordinatı - zemin teması) baz alınır. Araç sanal giriş ve çıkış çizgilerinden geçerken geçen süre kare (frame) bazlı ölçülür, `Hız = Mesafe / Zaman` formülüyle stabil makro hız bulunur.
-3. **Plaka Okuma:** Araçtan plaka bölgesi kırpılır, bulanıklık kontrolünden (Laplacian) geçirilir ve netse OCR ile okunup kaydedilir.
+Bu projenin geliştirilmesi ve test edilmesi aşamasında, açık kaynaklı **VS13 (Vehicle Speed 13)** veri setinden yararlanılmıştır.
+
+* **Kaynak:** [Slobodan - VS13 Dataset](https://slobodan.ucg.ac.me/science/vs13/)
+* **Kullanılan Alt Küme:** Sistemin kalibrasyonunu ve testlerini standartlaştırmak amacıyla, veri setindeki yalnızca **Peugeot 3008** model araçların farklı hız senaryolarını (40 km/h - 100 km/h arası) içeren videolar izole edilerek kullanılmıştır.
 
 ---
 
@@ -91,37 +121,3 @@ Geliştirme sürecinde 30'dan fazla farklı hız senaryosuna (40 km/h - 100 km/h
 * **Hız Ölçüm Doğruluğu:** Araçların büyük bir çoğunluğunda **%2 ila %5** gibi endüstri standartlarında hata paylarıyla ölçüm yapılmıştır.
 * **OCR Başarısı:** Çoğunluk oylaması algoritması sayesinde okunabilir plakaların neredeyse tamamı doğru çıkarılmıştır.
 * **Kısıtlamalar:** Sistem, çalıştırılan videonun FPS (Saniyedeki Kare Sayısı) değerine duyarlıdır. 30 FPS standart videolarda yüksek hızlara çıkıldığında (100+ km/h), kare atlamalarından kaynaklı ufak matematiksel sapmalar görülebilir; 60 FPS kameralar ile bu hata payı sıfıra yaklaşmaktadır.
-
-## 📂 Veri Seti (Dataset)
-
-Bu projenin geliştirilmesi ve test edilmesi aşamasında, açık kaynaklı **VS13 (Vehicle Speed 13)** veri setinden yararlanılmıştır.
-
-* **Kaynak:** [Slobodan - VS13 Dataset](https://slobodan.ucg.ac.me/science/vs13/)
-* **Kullanılan Alt Küme:** Sistemin kalibrasyonunu ve testlerini standartlaştırmak amacıyla, veri setindeki yalnızca **Peugeot 3008** model araçların farklı hız senaryolarını (40 km/h - 100 km/h arası) içeren videolar izole edilerek kullanılmıştır.
-
-## ⚙️ Sistem Mimarisi ve İş Akışı
-
-Sistemin modüler yapısı üç temel aşamadan oluşmaktadır: Tespit/Takip, Hız Ölçümü ve OCR.
-
-```mermaid
-graph TD
-    A[Video Akışı / Kamera] --> B(1. YOLOv8n & ByteTrack)
-    B -->|Araç Tespit Edildi & ID Atandı| C{Alt Kenar Y2 Koordinatı}
-
-    C --> D[2. Sanal Radar Modülü]
-    D -->|Kare Sayacı Başlar| E(Giriş Çizgisini Kesti)
-    E -->|Kare Sayacı Durur| F(Çıkış Çizgisini Kesti)
-    F --> G(Hız = Mesafe / Zaman)
-
-    C --> H[3. Plaka Tespit Modülü]
-    H --> I(Araçtan Plaka Kırpımı - YOLO)
-    I --> J{Bulanıklık Kontrolü}
-    J -->|Çok Bulanık| K[Pas Geç / Kaynak Koru]
-    J -->|Net Görüntü| L(fast-plate-ocr)
-    L --> M(Çoğunluk Oylaması - Majority Voting)
-
-    G --> N{NİHAİ EKRAN VE LOG}
-    M --> N
-    N --> O[ID + Hız + Plaka + İhlal Durumu]
-
-```
