@@ -19,7 +19,7 @@ from fast_plate_ocr import LicensePlateRecognizer
 # AYARLAR
 # =============================================================================
 
-DEFAULT_VIDEO_PATH = "videos/Peugeot3008_100.MP4"
+DEFAULT_VIDEO_PATH = "videos/Peugeot3008_87.MP4"
 VEHICLE_MODEL_PATH = "yolov8n.pt"
 PLATE_MODEL_PATH = "runs/detect/train-3/weights/best.pt"
 PLATE_OCR_MODEL = "cct-s-v2-global-model"
