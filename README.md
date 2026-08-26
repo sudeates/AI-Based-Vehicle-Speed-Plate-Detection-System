@@ -1,8 +1,6 @@
 # AI-Based Vehicle Speed & Plate Detection System
 <img width="1268" height="676" alt="image" src="https://github.com/user-attachments/assets/283666f2-0ca0-4549-96fe-67019984c2ec" />
 
-# Araç Hız ve Plaka Tespit Sistemi
-
 ## Bu proje ne yapar?
 
 Bir yol/kavşak videosu izler, videodaki araçları tespit eder, her aracın
@@ -15,8 +13,7 @@ Ekranda şöyle bir sonuç görürsün:
 ID 3: 87.4 km/h | 34ABC123 !!! LIMIT ASIMI !!!
 ```
 
-## Nasıl çalışır? (basit anlatım)
-
+## Nasıl çalışır? 
 1. **Aracı bul ve takip et:** Videodaki her karede, YOLO adlı bir yapay zeka
    modeli araçları (kutu çizerek) tespit eder. Aynı araç farklı karelerde
    aynı "ID" numarasıyla takip edilir, böylece "bu az önce gördüğümüz araç mı"
@@ -158,5 +155,4 @@ karşılaştırılabilir.
   yapabilir. 30 FPS'lik bir videoda, çok hızlı giden bir araç iki kare
   arasında ~1 metre yol alabilir; bu da küçük ölçüm sapmalarına yol açabilir.
   60-120 FPS kamera kullanmak bu sapmayı azaltır.
-- Genel hız ölçüm hatası **%2-%5** aralığındadır (endüstri standardına
-  yakın).
+- Genel hız ölçüm hatası **%2-%5** aralığındadır 
