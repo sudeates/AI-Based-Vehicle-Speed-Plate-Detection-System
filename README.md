@@ -68,9 +68,6 @@ Kod içinde hiçbir "sihirli sayı" olmasın diye, değiştirilmesi muhtemel tü
 ayarlar bu dosyada toplanmıştır: hangi model dosyası kullanılacak, giriş/çıkış
 çizgileri video üzerinde hangi pikselde, hız limiti kaç km/h, vs.
 
-👉 **Bir ayarı değiştirmek istediğinde ilk bakman gereken dosya budur.**
-Kod mantığını değiştirmene gerek kalmaz.
-
 ### 🎯 `virtual_loop.py` — HIZ HESAPLAMA MANTIĞI
 Yukarıdaki 2. adımı (Sanal Radar) yapan dosya. İçinde `VirtualLoop` adında
 bir yapı var: her araç ID'si için "bu araç giriş çizgisini ne zaman geçti,
