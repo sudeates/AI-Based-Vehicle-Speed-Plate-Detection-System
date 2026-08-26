@@ -1,10 +1,24 @@
+"""
+batch_evaluate.py
+------------------
+videos/ klasorundeki TUM videolari sirayla detect_speed.py ile (--headless
+modda) calistirir, dosya adindan gercek hizi cikarir (orn. Peugeot3008_100.MP4
+-> 100 km/h), olculen hiz ile karsilastirip hata yuzdesini hesaplar.
+
+Sonunda en sorunludan en iyiye siralanmis bir ozet tablo basar. Bu, sistemin
+genel dogruluk oranini tek tek video acmadan hizlica gormek icin kullanilir.
+
+Kullanim:
+    python batch_evaluate.py
+"""
+
 import re
 import subprocess
 import sys
 from pathlib import Path
 
 VIDEOS_DIR = Path("videos")
-SCRIPT = "car_detect_virtual_loop.py"
+SCRIPT = "detect_speed.py"
 
 # Dosya adinin sonundaki sayiyi gercek hiz olarak okuyor,
 # ornek: Peugeot3008_100.MP4 -> 100

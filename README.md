@@ -1,104 +1,157 @@
-# AI-Based Vehicle Speed & Plate Detection System
-<img width="1268" height="676" alt="image" src="https://github.com/user-attachments/assets/283666f2-0ca0-4549-96fe-67019984c2ec" />
+# Araç Hız ve Plaka Tespit Sistemi
 
-Bu proje, tek bir sabit güvenlik kamerası açısından geçen araçların anlık hızlarını ve plakalarını yüksek doğrulukla tespit etmeyi amaçlayan, görüntü işleme ve derin öğrenme tabanlı bir sistemdir. Klasik donanımsal radar cihazlarına ihtiyaç duymadan, video analitiği ve "Sanal Radar (Virtual Loop)" mantığı kullanarak çalışır.
+## Bu proje ne yapar?
 
-## 🌟 Özellikler
+Bir yol/kavşak videosu izler, videodaki araçları tespit eder, her aracın
+**km/h cinsinden hızını** hesaplar ve **plakasını okur**. Fiziksel bir radar
+cihazı kullanılmaz — sadece kameradan alınan görüntü işlenerek hız hesaplanır.
 
-* **Donanımsız Hız Ölçümü:** Sadece kamera görüntüsü üzerinden, pikselleri gerçek dünya metriklerine çevirerek hız ölçümü.
-* **Sanal Radar (Virtual Loop):** Titreşimli ve hatalı anlık ölçümler yerine, giriş-çıkış çizgileri arasında makro zaman/mesafe hesabı ile %2-%5 hata payı.
-* **Akıllı Referans Noktası:** Perspektiften kaynaklı esnemeleri önlemek için araçların "Kutu Merkezi" yerine "Yere Temas Noktası (Alt Kenar)" referans alınır.
-* **Bulanıklık Kontrolü (Motion Blur Check):** Hareket bulanıklığına sahip plakalar, Laplacian varyansı ile tespit edilip elenerek sistem kaynakları (CPU/GPU) korunur.
-* **Majority Voting (Çoğunluk Oylaması):** Plaka okunurken anlık hataları sıfırlamak için araç kadrajdayken alınan tüm OCR sonuçları harf bazlı oylanarak en doğru nihai plaka oluşturulur.
-* **Hız İhlal Bildirimi:** Belirlenen limiti (Örn: 50 km/h) aşan araçlar ekranda ve terminal loglarında otomatik olarak vurgulanır.
-
----
-
-## 🛠️ Teknoloji Yığını (Tech Stack)
-
-* **Dil:** Python 3.x
-* **Araç Tespiti (Object Detection):** YOLOv8n (Performans için Nano model)
-* **Nesne Takibi (Tracking):** ByteTrack (Kesintisiz Track ID ataması için)
-* **Plaka Tespiti:** YOLOv8n (Plaka tespiti için özel eğitilmiş custom model)
-* **OCR Modeli:** `fast-plate-ocr` (CCT-S-v2 Global Model)
-* **Görüntü İşleme ve Matematik:** OpenCV, NumPy
-
----
-
-## 📂 Veri Seti (Dataset)
-
-Bu projenin geliştirilmesi ve test edilmesi aşamasında, açık kaynaklı **VS13 (Vehicle Speed 13)** veri setinden yararlanılmıştır.
-
-* **Kaynak:** [Slobodan - VS13 Dataset](https://slobodan.ucg.ac.me/science/vs13/)
-* **Kullanılan Alt Küme:** Sistemin kalibrasyonunu ve testlerini standartlaştırmak amacıyla, veri setindeki yalnızca **Peugeot 3008** model araçların farklı hız senaryolarını (40 km/h - 100 km/h arası) içeren videolar izole edilerek kullanılmıştır.
-
----
-
-## ⚙️ Sistem Mimarisi ve İş Akışı
-
-Sistemin modüler yapısı üç temel aşamadan oluşmaktadır: Tespit/Takip, Hız Ölçümü ve OCR.
-
-```mermaid
-graph TD
-    A[Video Akışı / Kamera] --> B(1. YOLOv8n & ByteTrack)
-    B -->|Araç Tespit Edildi & ID Atandı| C{Alt Kenar Y2 Koordinatı}
-
-    C --> D[2. Sanal Radar Modülü]
-    D -->|Kare Sayacı Başlar| E(Giriş Çizgisini Kesti)
-    E -->|Kare Sayacı Durur| F(Çıkış Çizgisini Kesti)
-    F --> G(Hız = Mesafe / Zaman)
-
-    C --> H[3. Plaka Tespit Modülü]
-    H --> I(Araçtan Plaka Kırpımı - YOLO)
-    I --> J{Bulanıklık Kontrolü}
-    J -->|Çok Bulanık| K[Pas Geç / Kaynak Koru]
-    J -->|Net Görüntü| L(fast-plate-ocr)
-    L --> M(Çoğunluk Oylaması - Majority Voting)
-
-    G --> N{NİHAİ EKRAN VE LOG}
-    M --> N
-    N --> O[ID + Hız + Plaka + İhlal Durumu]
+Ekranda şöyle bir sonuç görürsün:
 
 ```
+ID 1: 87.4 km/h | 34ABC123 !!! LIMIT ASIMI !!!
+```
+
+## Nasıl çalışır? 
+
+1. **Aracı bul ve takip et:** Videodaki her karede, YOLO adlı bir yapay zeka
+   modeli araçları (kutu çizerek) tespit eder. Aynı araç farklı karelerde
+   aynı "ID" numarasıyla takip edilir, böylece "bu az önce gördüğümüz araç mı"
+   sorusuna cevap verilmiş olur.
+
+2. **Hızı ölç:** Ekranda hayali iki çizgi vardır: bir **giriş çizgisi**, bir
+   de **çıkış çizgisi**. Araç giriş çizgisini geçtiği an bir kronometre
+   başlar, çıkış çizgisini geçtiği an durur. Bu iki çizgi arasındaki gerçek
+   mesafe (metre cinsinden, önceden ölçülmüştür) geçen süreye bölünerek hız
+   hesaplanır:
+
+   ```
+   hız = mesafe (metre) / geçen süre (saniye)
+   ```
+
+   Buna projede **"Sanal Radar" (Virtual Loop)** deniyor, çünkü fiziksel bir
+   radar/sensör yok, çizgiler sadece video üzerinde hayali olarak tanımlanmış.
+
+3. **Plakayı oku:** Araç tespit edilen kutunun içinde, ikinci bir YOLO modeli
+   plakanın tam olarak nerede olduğunu bulur. Görüntü bulanıksa (araç hızlı
+   gittiği için bulanıklaşmış olabilir) o kare atlanır, kaynak boşa
+   harcanmaz. Net görüntüler bir OCR (görüntüden yazı okuma) modeline
+   verilir ve plaka metni elde edilir.
+
+4. **En doğru plakayı seç:** Bir araç ekranda kaldığı süre boyunca onlarca
+   kare görülür ve her karede plaka farklı okunabilir (OCR hatasız değildir).
+   Bu yüzden tüm okumalar toplanır ve harf harf **"çoğunluk oylaması"**
+   yapılır: her pozisyonda en sık çıkan harf/rakam nihai plaka olarak kabul
+   edilir.
+
+5. **Sonucu göster:** Hız, plaka ve (varsa) hız limiti aşımı uyarısı ekrana
+   ve terminale yazdırılır.
 
 ---
 
-## 🚀 Kurulum ve Kullanım
+### 🟢 `detect_speed.py` — PROJENİN ANA DOSYASI
+Buradan çalıştırırsın. Bir video dosyası verirsin, o video oynatılır (veya
+arka planda işlenir), ekranda araçların hızı ve plakası gösterilir. Yukarıda
+anlatılan 5 adımın hepsini birbirine bağlayan dosya budur. Diğer tüm
+dosyalar (`config.py`, `virtual_loop.py`, `plate_reader.py`) bu dosyanın
+içeride kullandığı "yardımcı parçalardır".
 
-**1. Gerekli kütüphaneleri yükleyin:**
-Sistemin çalışması için gerekli kütüphaneleri (YOLO, OpenCV, fast-plate-ocr vb.) kurun.
+**Nasıl çalıştırılır:**
+```bash
+python detect_speed.py videos/ornek_video.mp4
+```
 
+### ⚙️ `config.py` — AYARLAR
+Kod içinde hiçbir "sihirli sayı" olmasın diye, değiştirilmesi muhtemel tüm
+ayarlar bu dosyada toplanmıştır: hangi model dosyası kullanılacak, giriş/çıkış
+çizgileri video üzerinde hangi pikselde, hız limiti kaç km/h, vs.
+
+👉 **Bir ayarı değiştirmek istediğinde ilk bakman gereken dosya budur.**
+Kod mantığını değiştirmene gerek kalmaz.
+
+### 🎯 `virtual_loop.py` — HIZ HESAPLAMA MANTIĞI
+Yukarıdaki 2. adımı (Sanal Radar) yapan dosya. İçinde `VirtualLoop` adında
+bir yapı var: her araç ID'si için "bu araç giriş çizgisini ne zaman geçti,
+çıkış çizgisini ne zaman geçti" bilgisini tutar ve ikisinden hızı hesaplar.
+
+### 🔤 `plate_reader.py` — PLAKA OKUMA MANTIĞI
+Yukarıdaki 3. ve 4. adımı (plaka bulma, netlik kontrolü, OCR, çoğunluk
+oylaması) yapan dosya.
+
+### 📊 `batch_evaluate.py` — TOPLU TEST ARACI
+`detect_speed.py` tek bir videoyu çalıştırır. Bu dosya ise `videos/`
+klasöründeki **tüm videoları arka arkaya, otomatik olarak** çalıştırır ve
+sistemin ne kadar doğru sonuç verdiğini bir tabloda özetler (gerçek hız ile
+ölçülen hız arasındaki fark, yüzde olarak).
+
+Bu dosya, sistemi elle tek tek test etmek yerine "genel başarı oranım kaç?"
+sorusuna hızlıca cevap almak için kullanılır. Ana sistemin çalışması için
+**gerekli değildir**, sadece geliştirme/test aşamasında işe yarar.
+
+**Nasıl çalıştırılır:**
+```bash
+python batch_evaluate.py
+```
+
+### 📂 `plate_detection/` klasörü — MODEL EĞİTİM ARAÇLARI
+Bu klasördeki dosyalar ana sistemin **parçası değildir**. Plaka tespit
+modelini (YOLO) sıfırdan eğitmek veya test etmek için, sadece bir kere,
+model geliştirme aşamasında kullanılır.
+
+- **`train_plate.py`** → Plaka tespit modelini bir veri setiyle eğitir. Bu
+  script çalıştırıldığında ortaya çıkan model dosyası (`best.pt`),
+  `detect_speed.py`'nin plaka bulmak için kullandığı modeldir.
+- **`test_plate.py`** → Eğitilmiş modelin düzgün çalışıp çalışmadığını tek
+  bir resim üzerinde hızlıca görsel olarak kontrol etmek için kullanılır.
+
+---
+
+## Kurulum ve çalıştırma
+
+**1. Gerekli kütüphaneleri kur:**
 ```bash
 pip install -r requirements.txt
-
 ```
 
-**2. Sistemi tek bir videoda (Görsel Arayüz ile) çalıştırın:**
-
+**2. Tek bir videoyu test et:**
 ```bash
-python car_detect_virtual_loop.py videos/Peugeot3008_70.MP4
-
+python detect_speed.py videos/ornek_video.mp4
 ```
 
-**3. Başarımı test etmek için tüm videoları (Arka planda) çalıştırın:**
-
+**3. Tüm videoları toplu test et (sistemin genel doğruluğunu görmek için):**
 ```bash
-python batch_evaluate.py --headless
-
+python batch_evaluate.py
 ```
 
 ---
 
-## 📊 Test Sonuçları ve Başarı Oranları
+## Kullanılan teknolojiler
 
-Proje, Peugeot 3008 araçlarının yer aldığı 30'dan fazla farklı hız senaryosuna sahip video veri seti üzerinde test edilmiştir:
-
-* **Hız Ölçüm Doğruluğu:** Araçların büyük bir çoğunluğunda **%2 ila %5** gibi endüstri standartlarında hata paylarıyla ölçüm yapılmıştır.
-* **OCR Başarısı:** Çoğunluk oylaması algoritması sayesinde okunabilir plakaların %100'e yakını kusursuz çıkarılmıştır.
-
-### ⚠️ Sınır Durumlar (Edge Cases) ve Donanım Kısıtları
-
-İstisnai birkaç videoda görülen sapmalar matematiksel bir hatadan ziyade **kameranın FPS (Saniyedeki Kare Sayısı) limitinden** kaynaklanmaktadır.
-Sistem 30 FPS videolar üzerinde çalışmaktadır. (1 kare = ~33ms). 100 km/s hızla giden bir araç iki kare arasında yaklaşık 1 metre mesafe kat eder. YOLO'nun araç üzerindeki far/yansıma parlamaları nedeniyle sınır kutusunu (Bounding Box) anlık esnetmesi, bu milisaniyelik sanal çizgi geçiş zamanlamasını etkileyebilmektedir. Gelecek çalışmalarda **60 veya 120 FPS** kameralar kullanılarak bu donanımsal sapma sıfıra indirilebilir.
+| Teknoloji | Ne için kullanılıyor |
+|---|---|
+| **YOLOv8n** | Araçları ve plakaları tespit etmek (görüntüdeki nesneleri bulmak) |
+| **ByteTrack** | Aynı aracı farklı karelerde aynı ID ile takip etmek |
+| **fast-plate-ocr** | Plaka görselinden yazıyı (harf/rakam) okumak |
+| **OpenCV** | Video okuma, görüntü işleme, ekrana çizim yapma |
 
 ---
+
+## Veri Seti
+
+Test videoları, açık kaynaklı **VS13 (Vehicle Speed 13)** veri setinden
+alınmıştır: [slobodan.ucg.ac.me/science/vs13](https://slobodan.ucg.ac.me/science/vs13/)
+
+Sadece **Peugeot 3008** modelinin farklı hızlarda (40–100 km/h) çekilmiş
+videoları kullanılmıştır, böylece sonuçlar standart bir şekilde
+karşılaştırılabilir.
+
+---
+
+## Bilinen sınırlamalar
+
+- Sistem hesabı **video kaç kare/saniye (FPS) çekildiyse** o hassasiyette
+  yapabilir. 30 FPS'lik bir videoda, çok hızlı giden bir araç iki kare
+  arasında ~1 metre yol alabilir; bu da küçük ölçüm sapmalarına yol açabilir.
+  60-120 FPS kamera kullanmak bu sapmayı azaltır.
+- Genel hız ölçüm hatası **%2-%5** aralığındadır (endüstri standardına
+  yakın).
