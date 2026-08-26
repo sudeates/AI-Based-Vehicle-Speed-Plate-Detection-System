@@ -1,6 +1,7 @@
 # Kamera Tabanlı Araç Hız ve Plaka Tespit Sistemi
 
 Bu proje, bir video kaydı üzerinden geçen araçları tespit eden, hızlarını hesaplayan ve plakalarını okuyan görüntü işleme tabanlı bir yazılımdır. Sistem, fiziksel bir radar sensörü kullanmadan sadece pikseller ve zaman hesaplamaları üzerinden çalışır.
+<img width="1272" height="676" alt="image" src="https://github.com/user-attachments/assets/82d5951d-d675-412f-9add-24ba06254eb6" />
 
 ## 📁 Projedeki Dosyalar ve Kodun İşleyişi
 
